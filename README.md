@@ -24,4 +24,7 @@
 
 ## 🚀 Стартиране
 Няма нужда от инсталация. Просто клонирайте хранилището и отворете `index.html` във всеки съвременен браузър.
+<img width="1902" height="939" alt="image" src="https://github.com/user-attachments/assets/63dda32c-a6b0-4af1-bec1-11204df1e49a" />
+<img width="1902" height="939" alt="image" src="https://github.com/user-attachments/assets/63dda32c-a6b0-4af1-bec1-11204df1e49a" />
+
 
