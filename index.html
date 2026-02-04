@@ -63,18 +63,21 @@
 <div id="menu">
     <div class="menu-card">
         <h1 style="color: var(--primary); margin:0; font-size: 2.5rem;">🤖 РОБО-ИНЖЕНЕР</h1>
-        <input type="text" id="p-name" placeholder="НАПИШИ ИМЕТО СИ">
+        <p id="author-name" style="margin:5px 0; color: #666;">Автор: Дочка Кючукова</p>
+        
+        <input type="text" id="p-name" placeholder="НАПИШИ ИМЕТО СИ ТУК..." oninput="checkUser()">
+        
+        <div id="welcome-msg" style="margin: 10px; min-height: 40px; color: var(--lego-blue); font-weight: 800; font-size: 1.2rem;"></div>
+
         <div class="lvl-grid">
-            <button class="lego-btn full-width" style="background:var(--lego-red);" onclick="start(1)">1. МОДЕЛИРАНЕ</button>
-            <button class="lego-btn" style="background:var(--lego-blue);" onclick="start(2)">2. СРАВНЯВАНЕ (+)</button>
-            <button class="lego-btn" style="background:var(--lego-orange);" onclick="start(3)">3. СРАВНЯВАНЕ (-)</button>
-            <button class="lego-btn" style="background:var(--lego-yellow); color:#333;" onclick="start(4)">4. СЪБИРАНЕ (+)</button>
-            <button class="lego-btn" style="background:var(--accent);" onclick="start(5)">5. ИЗВАЖДАНЕ (-)</button>
+            <button class="lego-btn full-width" style="background:var(--lego-red);" onclick="tryStart(1)">1. МОДЕЛИРАНЕ</button>
+            <button class="lego-btn" style="background:var(--lego-blue);" onclick="tryStart(2)">2. СРАВНЯВАНЕ (+)</button>
+            <button class="lego-btn" style="background:var(--lego-orange);" onclick="tryStart(3)">3. СРАВНЯВАНЕ (-)</button>
+            <button class="lego-btn" style="background:var(--lego-yellow); color:#333;" onclick="tryStart(4)">4. СЪБИРАНЕ (+)</button>
+            <button class="lego-btn" style="background:var(--accent);" onclick="tryStart(5)">5. ИЗВАЖДАНЕ (-)</button>
         </div>
     </div>
-    <div class="author-tag">АВТОР: Дочка Кючукова</div>
 </div>
-
 <div id="win-modal"><div class="win-box"><h1 style="color:var(--accent); font-size:4rem; margin:0;">БРАВО! 🌟</h1></div></div>
 
 <div id="game-layout">
@@ -110,42 +113,54 @@
     let u = 0, n1 = 0, n2 = 0, goal = 0, lvl = 1, score = 0, sessionTasks = 0;
     const audio = new (window.AudioContext || window.webkitAudioContext)();
 
-    // ПРОВЕРКА ЗА ЗАПИСАН ИГРАЧ
-    document.getElementById('p-name').addEventListener('input', function(e) {
-        const savedData = localStorage.getItem('lego_math_' + e.target.value);
+    function checkUser() {
+        const name = document.getElementById('p-name').value.trim();
+        const msgDiv = document.getElementById('welcome-msg');
+        if (!name) {
+            msgDiv.innerText = "⚠️ Моля, напиши име, за да започнем!";
+            return;
+        }
+        const savedData = localStorage.getItem('lego_math_' + name);
         if (savedData) {
             const data = JSON.parse(savedData);
-            const welcomeMsg = `Добре дошъл отново, ${e.target.value}! Вече имаш ${data.score} точки!`;
-            document.querySelector('h1').innerText = "🤖 " + e.target.value;
-            // Малък визуален бонус при разпознаване
-            document.getElementById('p-name').style.borderColor = "var(--accent)";
+            msgDiv.innerHTML = `🌟 Твоят рекорд е ${data.score} точки.<br>Ще го подобриш ли днес?`;
+        } else {
+            msgDiv.innerText = "✨ Добре дошъл, нов инженер! Готов ли си?";
         }
-    });
+    }
 
-    function play(f) {
-        const o = audio.createOscillator(), g = audio.createGain();
-        o.connect(g); g.connect(audio.destination); o.frequency.value = f;
-        g.gain.setValueAtTime(0.1, audio.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audio.currentTime+0.1);
-        o.start(); o.stop(audio.currentTime+0.1);
+    function tryStart(l) {
+        const name = document.getElementById('p-name').value.trim();
+        if (!name) {
+            alert("Първо напиши името си!");
+            document.getElementById('p-name').focus();
+            return;
+        }
+        start(l);
     }
 
     function start(l) {
-        const name = document.getElementById('p-name').value || "Герой";
+        const name = document.getElementById('p-name').value.trim();
         lvl = l;
-        
-        // Зареждане на стари точки, ако името съвпада
         const savedData = localStorage.getItem('lego_math_' + name);
-        if (savedData) {
-            score = JSON.parse(savedData).score;
-        } else {
-            score = 0;
-        }
+        score = savedData ? JSON.parse(savedData).score : 0;
+        sessionTasks = 0;
 
         document.getElementById('ui-user').innerText = name;
         document.getElementById('ui-score').innerText = "УСПЕХ: " + score;
         document.getElementById('menu').style.display = 'none'; 
         document.getElementById('game-layout').style.display = 'flex';
         reset();
+    }
+
+    // Добавяне на бутон "КРАЙ" в UI (динамично)
+    if(!document.getElementById('btn-exit')) {
+        const exitBtn = document.createElement('button');
+        exitBtn.id = "btn-exit";
+        exitBtn.innerText = "🛑 КРАЙ";
+        exitBtn.style = "background:var(--lego-orange); border:none; color:white; padding:10px; border-radius:12px; cursor:pointer; font-weight:800; margin-left:10px;";
+        exitBtn.onclick = showFinalReport;
+        document.getElementById('top-bar').appendChild(exitBtn);
     }
 
     function reset() {
@@ -175,11 +190,6 @@
         update();
     }
 
-    function forceAdd(num) {
-        const b = document.createElement('div'); b.className = 'brick'; b.innerText = num;
-        b.style.background = 'var(--lego-green)'; document.getElementById('ut-1').appendChild(b);
-    }
-
     function draw(id, count, col) {
         const t = document.getElementById(id);
         for(let i=0; i<count; i++) {
@@ -188,16 +198,25 @@
         }
     }
 
+    function forceAdd(num) {
+        const b = document.createElement('div'); b.className = 'brick'; b.innerText = num;
+        b.style.background = 'var(--lego-green)'; document.getElementById('ut-1').appendChild(b);
+    }
+
     function modify(dir) {
         if(dir === 1 && u < 12) u++; else if(dir === -1 && u > 0) u--; else return;
-        play(dir > 0 ? 600 : 300);
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.connect(g); g.connect(audio.destination); o.frequency.value = dir > 0 ? 600 : 300;
+        g.gain.setValueAtTime(0.1, audio.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audio.currentTime+0.1);
+        o.start(); o.stop(audio.currentTime+0.1);
+
         const t1 = document.getElementById('ut-1'), t2 = document.getElementById('ut-2');
         if(dir === 1) {
             const b = document.createElement('div'); b.className = 'brick'; b.innerText = u;
             if(lvl === 4 && u > n1) { b.style.background = 'var(--lego-blue)'; t2.appendChild(b); }
             else { b.style.background = 'var(--lego-green)'; t1.appendChild(b); }
         } else {
-            if(t2.lastChild) t2.removeChild(t2.lastChild); else t1.removeChild(t1.lastChild);
+            if(t2.lastChild) t2.removeChild(t2.lastChild); else if(t1.lastChild) t1.removeChild(t1.lastChild);
         }
         update();
     }
@@ -213,17 +232,11 @@
 
     function check() {
         if(u === goal) {
-            score++;
-            sessionTasks++;
+            score++; sessionTasks++;
             document.getElementById('ui-score').innerText = "УСПЕХ: " + score;
-            
-            // ЗАПАЗВАНЕ НА ПРОГРЕСА
-            const name = document.getElementById('p-name').value || "Герой";
+            const name = document.getElementById('p-name').value.trim();
             localStorage.setItem('lego_math_' + name, JSON.stringify({score: score}));
 
-            play(900);
-
-            // ПРОВЕРКА ЗА МЕЖДИНЕН РАПОРТ (на всеки 5 задачи)
             if (sessionTasks % 5 === 0) {
                 showReport();
             } else {
@@ -231,22 +244,37 @@
                 document.getElementById('win-modal').style.display = 'flex';
                 setTimeout(() => { document.getElementById('win-modal').style.display = 'none'; reset(); }, 1200);
             }
-        } else { 
-            play(200); 
+        } else {
+            const o = audio.createOscillator(); o.connect(audio.destination); o.frequency.value = 200; o.start(); o.stop(audio.currentTime+0.2);
         }
     }
 
     function showReport() {
         const modal = document.getElementById('win-modal');
         modal.innerHTML = `
-            <div class="win-box" style="border-color: var(--lego-blue); max-width: 500px;">
-                <h2 style="color: var(--lego-blue); font-size: 2rem;">🏆 ПОЧИВКА ЗА ИНЖЕНЕРА</h2>
+            <div class="win-box" style="border-color: var(--lego-blue);">
+                <h2 style="color: var(--lego-blue);">📊 МЕЖДИНЕН ОТЧЕТ</h2>
                 <p style="font-size: 1.5rem;">Ти реши успешно още 5 задачи!</p>
-                <div style="background: #e3f2fd; padding: 20px; border-radius: 20px; margin: 20px 0;">
-                    <p style="margin: 5px 0;">Общо точки дотук: <strong>${score}</strong></p>
-                    <p style="margin: 5px 0;">Ниво: <strong>${lvl}</strong></p>
+                <p>Общ резултат до момента: <strong>${score}</strong></p>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="lego-btn" style="background:var(--accent); flex:1;" onclick="closeReport()">ПРОДЪЛЖАВАМ</button>
+                    <button class="lego-btn" style="background:var(--lego-red); flex:1;" onclick="showFinalReport()">ПРИКЛЮЧВАМ</button>
                 </div>
-                <button class="lego-btn" style="background: var(--accent); width: 100%;" onclick="closeReport()">ПРОДЪЛЖИ НАПРЕД!</button>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    }
+
+    function showFinalReport() {
+        const modal = document.getElementById('win-modal');
+        modal.innerHTML = `
+            <div class="win-box" style="border-color: var(--lego-orange);">
+                <h2 style="color: var(--lego-orange);">🏆 ФИНАЛЕН РАПОРТ</h2>
+                <p style="font-size: 1.2rem;">Страхотна работа, <strong>${document.getElementById('p-name').value}</strong>!</p>
+                <div style="background:#fff3e0; padding:15px; border-radius:15px; margin:15px 0;">
+                    <p>Твоят нов общ резултат е: <strong>${score}</strong></p>
+                </div>
+                <button class="lego-btn" style="background:var(--lego-blue); width:100%;" onclick="location.reload()">ОБРАТНО КЪМ МЕНЮТО</button>
             </div>
         `;
         modal.style.display = 'flex';
