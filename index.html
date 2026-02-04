@@ -47,6 +47,15 @@
 
         #win-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
         .win-box { background: white; padding: 40px; border-radius: 40px; border: 12px solid var(--accent); text-align: center; }
+.author-tag {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 600;
+    letter-spacing: 1px;
+}
     </style>
 </head>
 <body>
@@ -63,6 +72,7 @@
             <button class="lego-btn" style="background:var(--accent);" onclick="start(5)">5. ИЗВАЖДАНЕ (-)</button>
         </div>
     </div>
+    <div class="author-tag">АВТОР: Дочка Кючукова</div>
 </div>
 
 <div id="win-modal"><div class="win-box"><h1 style="color:var(--accent); font-size:4rem; margin:0;">БРАВО! 🌟</h1></div></div>
@@ -97,8 +107,20 @@
 </div>
 
 <script>
-    let u = 0, n1 = 0, n2 = 0, goal = 0, lvl = 1, score = 0;
+    let u = 0, n1 = 0, n2 = 0, goal = 0, lvl = 1, score = 0, sessionTasks = 0;
     const audio = new (window.AudioContext || window.webkitAudioContext)();
+
+    // ПРОВЕРКА ЗА ЗАПИСАН ИГРАЧ
+    document.getElementById('p-name').addEventListener('input', function(e) {
+        const savedData = localStorage.getItem('lego_math_' + e.target.value);
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            const welcomeMsg = `Добре дошъл отново, ${e.target.value}! Вече имаш ${data.score} точки!`;
+            document.querySelector('h1').innerText = "🤖 " + e.target.value;
+            // Малък визуален бонус при разпознаване
+            document.getElementById('p-name').style.borderColor = "var(--accent)";
+        }
+    });
 
     function play(f) {
         const o = audio.createOscillator(), g = audio.createGain();
@@ -108,8 +130,21 @@
     }
 
     function start(l) {
-        lvl = l; document.getElementById('ui-user').innerText = document.getElementById('p-name').value || "Герой";
-        document.getElementById('menu').style.display = 'none'; document.getElementById('game-layout').style.display = 'flex';
+        const name = document.getElementById('p-name').value || "Герой";
+        lvl = l;
+        
+        // Зареждане на стари точки, ако името съвпада
+        const savedData = localStorage.getItem('lego_math_' + name);
+        if (savedData) {
+            score = JSON.parse(savedData).score;
+        } else {
+            score = 0;
+        }
+
+        document.getElementById('ui-user').innerText = name;
+        document.getElementById('ui-score').innerText = "УСПЕХ: " + score;
+        document.getElementById('menu').style.display = 'none'; 
+        document.getElementById('game-layout').style.display = 'flex';
         reset();
     }
 
@@ -121,18 +156,18 @@
         sM.style.display = "none"; pR.style.display = "flex"; document.getElementById('rt-2').style.display = "none";
         pU.style.transform = pR.style.transform = "none";
 
-        if (lvl === 5) { // ИЗВАЖДАНЕ: Моделиране на разлика
+        if (lvl === 5) { 
             goal = n1 - n2; tL.innerHTML = `${n1} - ${n2} = `;
             sM.style.display = "block"; sM.innerText = "-"; sE.innerText = "=";
             document.getElementById('rt-2').style.display = "flex";
             draw('rt-1', n1, 'var(--lego-red)'); draw('rt-2', n2, 'var(--lego-blue)');
             u = n1; for(let i=0; i<u; i++) forceAdd(i+1);
-        } else if (lvl === 4) { // СЪБИРАНЕ
+        } else if (lvl === 4) { 
             goal = n1 + n2; tL.innerHTML = `${n1} + ${n2} = `;
             sM.style.display = "block"; sM.innerText = "+"; sE.innerText = "=";
             document.getElementById('rt-2').style.display = "flex";
             draw('rt-1', n1, 'var(--lego-red)'); draw('rt-2', n2, 'var(--lego-blue)');
-        } else { // СРАВНЯВАНЕ (Нива 1, 2, 3)
+        } else { 
             goal = n1; tL.innerHTML = `${n1} = `; sE.innerText = (lvl === 1) ? "🏗️" : "=";
             if(lvl === 1) pR.style.display = "none"; else draw('rt-1', n1, 'var(--lego-red)');
             if(lvl === 3) { u = n1 + 3; for(let i=0; i<u; i++) forceAdd(i+1); }
@@ -178,10 +213,48 @@
 
     function check() {
         if(u === goal) {
-            score++; document.getElementById('ui-score').innerText = "УСПЕХ: " + score; play(900);
-            document.getElementById('win-modal').style.display = 'flex';
-            setTimeout(() => { document.getElementById('win-modal').style.display = 'none'; reset(); }, 1200);
-        } else { play(200); }
+            score++;
+            sessionTasks++;
+            document.getElementById('ui-score').innerText = "УСПЕХ: " + score;
+            
+            // ЗАПАЗВАНЕ НА ПРОГРЕСА
+            const name = document.getElementById('p-name').value || "Герой";
+            localStorage.setItem('lego_math_' + name, JSON.stringify({score: score}));
+
+            play(900);
+
+            // ПРОВЕРКА ЗА МЕЖДИНЕН РАПОРТ (на всеки 5 задачи)
+            if (sessionTasks % 5 === 0) {
+                showReport();
+            } else {
+                document.getElementById('win-modal').innerHTML = '<div class="win-box"><h1 style="color:var(--accent); font-size:4rem; margin:0;">БРАВО! 🌟</h1></div>';
+                document.getElementById('win-modal').style.display = 'flex';
+                setTimeout(() => { document.getElementById('win-modal').style.display = 'none'; reset(); }, 1200);
+            }
+        } else { 
+            play(200); 
+        }
+    }
+
+    function showReport() {
+        const modal = document.getElementById('win-modal');
+        modal.innerHTML = `
+            <div class="win-box" style="border-color: var(--lego-blue); max-width: 500px;">
+                <h2 style="color: var(--lego-blue); font-size: 2rem;">🏆 ПОЧИВКА ЗА ИНЖЕНЕРА</h2>
+                <p style="font-size: 1.5rem;">Ти реши успешно още 5 задачи!</p>
+                <div style="background: #e3f2fd; padding: 20px; border-radius: 20px; margin: 20px 0;">
+                    <p style="margin: 5px 0;">Общо точки дотук: <strong>${score}</strong></p>
+                    <p style="margin: 5px 0;">Ниво: <strong>${lvl}</strong></p>
+                </div>
+                <button class="lego-btn" style="background: var(--accent); width: 100%;" onclick="closeReport()">ПРОДЪЛЖИ НАПРЕД!</button>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    }
+
+    function closeReport() {
+        document.getElementById('win-modal').style.display = 'none';
+        reset();
     }
 </script>
 </body>
