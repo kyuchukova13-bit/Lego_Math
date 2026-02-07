@@ -84,7 +84,7 @@
     <div id="top-bar">
         <button onclick="location.reload()" style="background:var(--lego-red); border:none; color:white; padding:10px 20px; border-radius:12px; cursor:pointer; font-weight:800;">🏠 МЕНЮ</button>
         <span id="ui-user" style="font-size: 1.8rem; font-weight: 700;">Герой</span>
-        <span id="ui-score" style="font-size: 1.8rem; font-weight: 700;">УСПЕХ: 0</span>
+<span id="ui-score" style="font-size: 1.8rem; font-weight: 700; color: #FFD700; margin-left: 20px;">💰 0</span>
     </div>
     <div id="math-display">
         <span id="task-left"></span>
@@ -110,16 +110,40 @@
 </div>
 
 <script>
-    let u = 0, n1 = 0, n2 = 0, goal = 0, lvl = 1, score = 0, sessionTasks = 0;
+let u = 0, n1 = 0, n2 = 0, goal = 0, lvl = 1, score = 0, sessionTasks = 0;
     const audio = new (window.AudioContext || window.webkitAudioContext)();
+
+    // ЗАРЕЖДАНЕ ПРИ ОТВАРЯНЕ
+    window.onload = () => {
+        const lastPlayer = localStorage.getItem('lego_player_name'); 
+        if (lastPlayer) {
+            document.getElementById('p-name').value = lastPlayer;
+            document.getElementById('ui-user').innerText = lastPlayer;
+            
+            // Зареждаме точките за това име
+            const savedData = localStorage.getItem('lego_math_' + lastPlayer);
+            if (savedData) {
+                score = JSON.parse(savedData).score || 0;
+                document.getElementById('ui-score').innerText = "💰 " + score;
+            }
+            checkUser(); // Обновява съобщението в менюто
+        }
+    };
 
     function checkUser() {
         const name = document.getElementById('p-name').value.trim();
         const msgDiv = document.getElementById('welcome-msg');
+        
         if (!name) {
             msgDiv.innerText = "⚠️ Моля, напиши име, за да започнем!";
+            document.getElementById('ui-user').innerText = "Герой";
             return;
         }
+
+        // Автоматично обновяваме името в горната лента и го записваме
+        document.getElementById('ui-user').innerText = name;
+        localStorage.setItem('lego_player_name', name);
+
         const savedData = localStorage.getItem('lego_math_' + name);
         if (savedData) {
             const data = JSON.parse(savedData);
@@ -147,13 +171,13 @@
         sessionTasks = 0;
 
         document.getElementById('ui-user').innerText = name;
-        document.getElementById('ui-score').innerText = "УСПЕХ: " + score;
+        document.getElementById('ui-score').innerText = "💰 " + score;
         document.getElementById('menu').style.display = 'none'; 
         document.getElementById('game-layout').style.display = 'flex';
         reset();
     }
 
-    // Добавяне на бутон "КРАЙ" в UI (динамично)
+    // Добавяне на бутон "КРАЙ" в UI
     if(!document.getElementById('btn-exit')) {
         const exitBtn = document.createElement('button');
         exitBtn.id = "btn-exit";
@@ -230,10 +254,24 @@
         }
     }
 
+    function playCoin() {
+        const o = audio.createOscillator();
+        const g = audio.createGain();
+        o.connect(g); g.connect(audio.destination);
+        o.type = 'sine';
+        o.frequency.setValueAtTime(900, audio.currentTime);
+        o.frequency.exponentialRampToValueAtTime(1500, audio.currentTime + 0.1);
+        g.gain.setValueAtTime(0.2, audio.currentTime);
+        g.gain.linearRampToValueAtTime(0, audio.currentTime + 0.3);
+        o.start(); o.stop(audio.currentTime + 0.3);
+    }
+
     function check() {
         if(u === goal) {
             score++; sessionTasks++;
-            document.getElementById('ui-score').innerText = "УСПЕХ: " + score;
+            document.getElementById('ui-score').innerText = "💰 " + score;
+            playCoin(); 
+
             const name = document.getElementById('p-name').value.trim();
             localStorage.setItem('lego_math_' + name, JSON.stringify({score: score}));
 
@@ -242,43 +280,74 @@
             } else {
                 document.getElementById('win-modal').innerHTML = '<div class="win-box"><h1 style="color:var(--accent); font-size:4rem; margin:0;">БРАВО! 🌟</h1></div>';
                 document.getElementById('win-modal').style.display = 'flex';
-                setTimeout(() => { document.getElementById('win-modal').style.display = 'none'; reset(); }, 1200);
+                setTimeout(() => { 
+                    document.getElementById('win-modal').style.display = 'none'; 
+                    reset(); 
+                }, 1200);
             }
         } else {
-            const o = audio.createOscillator(); o.connect(audio.destination); o.frequency.value = 200; o.start(); o.stop(audio.currentTime+0.2);
+            const o = audio.createOscillator(); 
+            const g = audio.createGain();
+            o.connect(g); g.connect(audio.destination);
+            o.frequency.value = 150; 
+            g.gain.setValueAtTime(0.1, audio.currentTime);
+            o.start(); o.stop(audio.currentTime + 0.3);
         }
     }
 
     function showReport() {
         const modal = document.getElementById('win-modal');
         modal.innerHTML = `
-            <div class="win-box" style="border-color: var(--lego-blue);">
-                <h2 style="color: var(--lego-blue);">📊 МЕЖДИНЕН ОТЧЕТ</h2>
-                <p style="font-size: 1.5rem;">Ти реши успешно още 5 задачи!</p>
-                <p>Общ резултат до момента: <strong>${score}</strong></p>
-                <div style="display:flex; gap:10px; margin-top:20px;">
-                    <button class="lego-btn" style="background:var(--accent); flex:1;" onclick="closeReport()">ПРОДЪЛЖАВАМ</button>
-                    <button class="lego-btn" style="background:var(--lego-red); flex:1;" onclick="showFinalReport()">ПРИКЛЮЧВАМ</button>
+            <div class="win-box" style="border-color: var(--lego-blue); padding: 40px;">
+                <h2 style="color: var(--lego-blue); font-size: 2.5rem; margin-bottom: 20px;">📊 ОТЧЕТ</h2>
+                <p style="font-size: 1.8rem; margin-bottom: 10px;">Браво! Ти реши успешно още 5 задачи!</p>
+                <div style="background: #f0f4f8; padding: 15px; border-radius: 20px; margin: 20px 0;">
+                    <p style="font-size: 2rem; margin: 0;">Твоят резултат: <strong style="color: var(--lego-orange);">${score} 💰</strong></p>
+                </div>
+                <div style="display:flex; gap:15px; margin-top:30px;">
+                    <button class="lego-btn" style="background:var(--lego-red); flex:1; font-size: 1.4rem; padding: 15px;" onclick="showFinalReport()">ПРИКЛЮЧВАМ</button>
+                    <button class="lego-btn" style="background:var(--accent); flex:1; font-size: 1.4rem; padding: 15px;" onclick="closeReport()">ПРОДЪЛЖАВАМ</button>
                 </div>
             </div>
         `;
         modal.style.display = 'flex';
     }
 
-    function showFinalReport() {
-        const modal = document.getElementById('win-modal');
-        modal.innerHTML = `
-            <div class="win-box" style="border-color: var(--lego-orange);">
-                <h2 style="color: var(--lego-orange);">🏆 ФИНАЛЕН РАПОРТ</h2>
-                <p style="font-size: 1.2rem;">Страхотна работа, <strong>${document.getElementById('p-name').value}</strong>!</p>
-                <div style="background:#fff3e0; padding:15px; border-radius:15px; margin:15px 0;">
-                    <p>Твоят нов общ резултат е: <strong>${score}</strong></p>
-                </div>
-                <button class="lego-btn" style="background:var(--lego-blue); width:100%;" onclick="location.reload()">ОБРАТНО КЪМ МЕНЮТО</button>
+   function showFinalReport() {
+    const modal = document.getElementById('win-modal');
+    const playerName = document.getElementById('p-name').value;
+    
+    // Избираме медал според точките (примерно)
+    let medal = "🥇";
+    if (score < 10) medal = "🥉";
+    else if (score < 20) medal = "🥈";
+
+    modal.innerHTML = `
+        <div class="win-box" style="border-color: var(--lego-orange); padding: 40px; max-width: 500px;">
+            <div style="font-size: 5rem; margin-bottom: 10px;">${medal}</div>
+            
+            <h2 style="color: var(--lego-orange); font-size: 2.8rem; margin: 0 0 20px 0; text-transform: uppercase;">
+                СУПЕР ИНЖЕНЕР!
+            </h2>
+            
+            <p style="font-size: 1.8rem; margin-bottom: 10px;">
+                Браво, <strong style="color: var(--lego-blue);">${playerName}</strong>!
+            </p>
+            
+            <div style="background: #fff3e0; padding: 25px; border-radius: 30px; margin: 20px 0; border: 4px dashed var(--lego-orange);">
+                <p style="font-size: 1.6rem; margin: 0; color: #666;">Твоят краен резултат:</p>
+                <p style="font-size: 3.5rem; margin: 5px 0 0 0; font-weight: 800; color: #e65100;">
+                    ${score} 💰
+                </p>
             </div>
-        `;
-        modal.style.display = 'flex';
-    }
+            
+            <button class="lego-btn" style="background:var(--lego-blue); width:100%; font-size: 1.6rem; padding: 22px; margin-top: 10px;" onclick="location.reload()">
+                🚀 ОБРАТНО КЪМ МЕНЮТО
+            </button>
+        </div>
+    `;
+    modal.style.display = 'flex';
+}
 
     function closeReport() {
         document.getElementById('win-modal').style.display = 'none';
